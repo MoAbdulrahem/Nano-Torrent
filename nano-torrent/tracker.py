@@ -70,7 +70,7 @@ class Tracker:
 
 #Testing 
 if __name__ == '__main__':
-  test = Tracker(decode("dawn-shard-ebook.torrent"))
+  test = Tracker(decode("test.torrent"))
   # print ("torrent", test.torrent)
   test.connect(first=True)
   print ("Peer ID", test.peer_id)

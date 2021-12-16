@@ -1,4 +1,4 @@
-from bcoding import bdecode
+from bcoding import bdecode, bencode
 
 
 def decode(filepath: str=""):
@@ -22,9 +22,15 @@ def decode(filepath: str=""):
     return contents
 
 
+def encode(text: str=""):
+  '''
+  Returns the encoded text.
+  '''
+  if text is not None:
+    return bencode(text)
 
 # testing
 if __name__ == '__main__':
 
-  contents =  (decode("dawn-shard-ebook.torrent"))
-  print(contents['info']['piece length'])
+  contents =  decode('test2.torrent')
+  print(contents['info'])
