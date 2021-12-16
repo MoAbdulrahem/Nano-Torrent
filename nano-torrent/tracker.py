@@ -1,9 +1,11 @@
 import aiohttp
 import random
 import asyncio
+import logging
 from urllib.parse import urlencode
 from bencoding import decode
-
+from torrent import Torrent
+from struct import unpack
 
 
 class Tracker:
@@ -20,7 +22,7 @@ class Tracker:
     self.peer_id = self.calculate_peer_id()
     self.http_client = aiohttp.ClientSession()
 
-  def connect(self, first: bool=None, uploaded: int=0, downloaded: int=0):
+  async def connect(self, first: bool=None, uploaded: int=0, downloaded: int=0):
     '''
     Makes the 'announce' call to the tracker URL optained from the info['announce'] that we parsed from the .torrent file.
     If the call with successful, the tracker returns a response, of interest to us is the peer list which is a list of peers
@@ -41,7 +43,7 @@ class Tracker:
     compact:     Whether or not the client accepts a compacted list of peers or not
     '''
     parameters = {
-      # 'info_hash': self.torrent.info_hash,
+      'info_hash': self.torrent.info_hash,
       'peer_id': self.peer_id,
       'port': 6889,
       'uploaded': uploaded,
@@ -52,9 +54,38 @@ class Tracker:
     if first:
       parameters['event'] = 'started'
 
-    url = self.torrent['announce'] + '?' + urlencode(parameters)
-    print("Parameters: ",parameters)
-    print("URL: ",url)
+    url = self.torrent.announce + '?' + urlencode(parameters)
+    # print("Parameters: ",parameters)
+    # print("URL: ",url)
+    logging.info('Connecting to Tracker at: '+ url)
+
+    async with self.http_client.get(url) as response:
+      if not response.status == 200:
+        raise ConnectionError("Unable to connect to Tracker, status code {}".format(response.status))
+      
+      data = await response.read()
+      # self.detect_errors(data)
+
+      # TODO: Make the return a TrackerResponse Instance
+      return (decode(data))
+
+  def close(self):
+    '''
+    Closes the aiohttp ClientSession()
+    '''
+    self.http_client.close()
+
+  def detect_errors(self, traker_response):
+    '''
+    Detects error from the tracker if the reponse failed (returned status 200)
+    '''
+    try:
+      message = decode(traker_response)
+      if 'failure' in message:
+        raise ConnectionError('Unable to connect to tracker: {}'.format(message))
+    except:
+      pass
+
 
   def calculate_peer_id(self):
     '''
@@ -66,11 +97,31 @@ class Tracker:
     # generates 12 random numbers and appends them to the -PC1000- prefix
     return '-PC1000-' + ''.join([str(random.randint(0,9)) for _ in range(12)])
 
+  
+  def construct_tracker_parameters(self):
+    '''
+    constructs the url parameters that are going to be used when issuing the first connection
+    with the announce URL.
+    '''
+    return {
+      'info_hash': self.torrent.infohash,
+      'peer_id': self.peer_id,
+      'port': 6889,
+      'uploaded': 0,
+      'downloaded':0,
+      'left': 0,
+      'compact': 1,
+    }
 
+  def decode_port(port):
+    '''
+    converts a 32-bit packed binary number to int
+    '''
+    return unpack(">H", port)[0]
 
 #Testing 
 if __name__ == '__main__':
-  test = Tracker(decode("test.torrent"))
+  test = Tracker(Torrent("test2.torrent"))
   # print ("torrent", test.torrent)
-  test.connect(first=True)
+  # test.connect(first=True)
   print ("Peer ID", test.peer_id)
