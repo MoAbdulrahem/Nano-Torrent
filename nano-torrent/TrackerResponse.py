@@ -1,6 +1,4 @@
-import aiohttp
-import random
-import asyncio
+
 import logging
 import socket
 from urllib.parse import urlencode
@@ -39,3 +37,40 @@ class TrackerResponse:
 
       return [(socket.inet_ntoa(peer[:4]), decode_port(peer[:4])) for peer in peers] #socket.inet_ntoa: converts a 32-bit packed ip address to the standard dotted format. # This line converts the list of peers to a tuple.
 
+
+  @property
+  def incomplete(self):
+    '''
+    Number of peers that haven't completed their download (aka, number of leechers)
+    '''
+    return self.response.get('incomplete', 0)
+
+  @property
+  def complete(self):
+    '''
+    Number of peers that have completed the download (aka, number of seeders)
+    '''
+    return self.response.get('complete', 0)
+
+  @property 
+  def interval(self):
+    '''
+    The interval in seconds that the client must wait before contacting the tracker again
+    '''
+    return self.response.get('interval', 0)
+
+  @property
+  def failure(self):
+    '''
+    The reason why the tracker request failed, if the request succeeded, this would be set to None.
+    '''
+    return decode(self.response.get('failure reson'))
+
+  @property
+  def __str__(self):
+    return "Incomplete: {incomplete}\nComplete: {complete}\nInterval: {interval}\nPeers: {peers}\n".format(
+      incomplete = self.incomplete,
+      complete = self.complete,
+      interval = self.interval,
+      peers = self.peers
+    )
