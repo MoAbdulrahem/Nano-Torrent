@@ -121,7 +121,7 @@ def decode_port(port):
 
 #Testing 
 if __name__ == '__main__':
-  test = Tracker(Torrent("test2.torrent"))
-  # print ("torrent", test.torrent)
+  test = Tracker(Torrent("test-torrents/test2.torrent"))
+  # print ("torrent", test-torrents/test.torrent)
   # test.connect(first=True)
   print ("Peer ID", test.peer_id)

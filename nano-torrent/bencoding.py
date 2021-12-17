@@ -32,5 +32,5 @@ def encode(text: str=""):
 # testing
 if __name__ == '__main__':
 
-  contents =  decode('test2.torrent')
+  contents =  decode('test-torrents/test2.torrent')
   print(contents['info'])

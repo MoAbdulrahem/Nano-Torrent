@@ -107,5 +107,5 @@ class Torrent:
 
 #Testing
 if __name__ == '__main__':
-  test = Torrent("test2.torrent")
+  test = Torrent("test-torrents/test2.torrent")
   print(test)
