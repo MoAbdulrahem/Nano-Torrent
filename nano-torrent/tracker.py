@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from bencoding import decode
 from torrent import Torrent
 from struct import unpack
+from tracker_response import TrackerResponse
 
 
 class Tracker:
@@ -66,8 +67,8 @@ class Tracker:
       data = await response.read()
       # self.detect_errors(data)
 
-      # TODO: Make the return a TrackerResponse Instance
-      return (decode(data))
+
+      return TrackerResponse(decode(data))
 
   def close(self):
     '''
