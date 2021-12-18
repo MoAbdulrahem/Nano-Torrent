@@ -3,6 +3,9 @@
 # Max peer connection for a single torrent
 MAX_PEER_CONNECTION = 40
 
+# The default request size (the amount of data we can trasnmit or recieve is a single request)
+REQUEST_SIZE = 2**14
+
 class PeerConnection:
   '''
   Responsible for establishing the connection with peers.
