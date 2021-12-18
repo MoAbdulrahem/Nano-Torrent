@@ -78,7 +78,7 @@ class TorrentClient:
   
   def stop(self):
     '''
-    stops the download
+    stops the download.
     '''
     self.abort = True
     for peer in self.peers:
@@ -86,3 +86,21 @@ class TorrentClient:
 
     self.piece_manager.close()
     self.tracker.close()
+
+  def on_block_retrieved(self, peer_id, piece_index, block_offset, data):
+    '''
+    Called by peer connection when a peer has blocked the client
+
+    :param peer_id: the id of the peer the block was retrieved from.
+    :param piece_index: the piece index this block is a part of.
+    :param block_offset: the block offset within its piece.
+    :param data: the binary data retrieved.
+    '''
+    self.piece_manager.block_recieved(
+      peer_id = peer_id,
+      piece_index = piece_index,
+      block_offset = block_offset,
+      data = data
+    )
+
+  
