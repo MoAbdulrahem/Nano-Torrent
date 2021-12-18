@@ -42,7 +42,7 @@ class TorrentClient:
     # Last time we made an announce call
     previous = None
     # Interval between announce calls
-    interval = 30*60
+    interval = 30*60 # an initial value, the tracker is the one who decides the interval.
 
     while True: 
       # Handling the different expected outcomes from the download
@@ -60,4 +60,29 @@ class TorrentClient:
         uploaded = self.piece_manager.bytes_uploaded,
         downloaded = self.piece_manager.bytes_downloaded
         )
-    
+
+        if response:
+          previous = current
+          interval = response.interval #set the interval to whichever interval the tracker sent
+          self.empty_queue()
+          for peer in response.peers:
+            self.available_peers.put_nowait(peer) #Puts an item into the queue without blocking. If no free slot is immediately available, raises QueueFull.
+      else:
+        await asyncio.sleep(5)
+    self.stop()
+
+  def empty_queue(self):
+    while not self.available_peers.empty():
+      self.available_peers.get_nowait() #queue.get_nowait(): Removes and returns an item from the queue. Returns an item if one is immediately available, else raise QueueEmpty.
+
+  
+  def stop(self):
+    '''
+    stops the download
+    '''
+    self.abort = True
+    for peer in self.peers:
+      peer.stop()
+
+    self.piece_manager.close()
+    self.tracker.close()
