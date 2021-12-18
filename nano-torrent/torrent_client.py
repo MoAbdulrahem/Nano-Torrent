@@ -18,5 +18,6 @@ class TorrentClient:
     self.tracker = Tracker(torrent)
     self.available_peers = Queue() # The list of peers that can seed the file (all the peers we got from the tracker)
     self.peers = [] #The list of peers that we are trying to establish connection with (the peers we consumed from the Queue)
-    # self.piece_manager = PieceManager(torrent) # Decided which pieces of the file to request and how we store them on disk
+    self.piece_manager = PieceManager(torrent) # Decided which pieces of the file to request and how we store them on disk
     self.abort = False
+    
