@@ -1,4 +1,8 @@
 
+
+# Max peer connection for a single torrent
+MAX_PEER_CONNECTION = 40
+
 class PeerConnection:
   '''
   Responsible for establishing the connection with peers.
