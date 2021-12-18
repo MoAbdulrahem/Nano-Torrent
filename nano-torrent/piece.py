@@ -1,5 +1,4 @@
-
-
+import logging
 from hashlib import sha1
 
 from block import Block
@@ -70,5 +69,5 @@ class Piece:
     '''
     retrieved = sorted(self.blocks, key=lambda b: b.offset)
     blocks_data = [b.data for b in retrieved]
-    
+
     return b''.join(blocks_data)
