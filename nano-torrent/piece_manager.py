@@ -163,54 +163,54 @@ class PieceManager:
 
   
 
-def block_recieved(self, peer_id, piece_index, block_offset, data):
-  '''
-  This method must be called when a block has successfully been retrieved
-  by a peer.
+  def block_recieved(self, peer_id, piece_index, block_offset, data):
+    '''
+    This method must be called when a block has successfully been retrieved
+    by a peer.
 
-  Once a full piece has been retrieved, a SHA1 hash control is made. If
-  the check fails all the pieces blocks are put back in missing state to
-  be fetched again. If the hash succeeds the partial piece is written to
-  disk and the piece is indicated as Have.
-  '''
+    Once a full piece has been retrieved, a SHA1 hash control is made. If
+    the check fails all the pieces blocks are put back in missing state to
+    be fetched again. If the hash succeeds the partial piece is written to
+    disk and the piece is indicated as Have.
+    '''
 
-  logging.debug('Received block {block_offset} for piece {piece_index} from peer {peer_id}: '.format(
-    block_offset=block_offset,
-    piece_index=piece_index,
-    peer_id=peer_id
-    ))
+    logging.debug('Received block {block_offset} for piece {piece_index} from peer {peer_id}: '.format(
+      block_offset=block_offset,
+      piece_index=piece_index,
+      peer_id=peer_id
+      ))
 
-  # Remove from pending requests
-  for index, request in enumerate(self.pending_blocks):
-    if request.block.piece == piece_index and request.block.offset == block_offset:
-      del self.pending_blocks[index]
-      break
+    # Remove from pending requests
+    for index, request in enumerate(self.pending_blocks):
+      if request.block.piece == piece_index and request.block.offset == block_offset:
+        del self.pending_blocks[index]
+        break
 
-  pieces = [p for p in self.ongoing_pieces if p.index == piece_index] # get the piece 
-  # that we want to chack the hash value of.
-  piece = pieces[0] if pieces else None 
-  if piece:
-    piece.block_received(block_offset, data)
-    if piece.is_complete():
-      if piece.is_hash_matching():
-        self._write(piece)
-        self.ongoing_pieces.remove(piece)
-        self.have_pieces.append(piece)
-        complete = (self.total_pieces - len(self.missing_pieces) - len(self.ongoing_pieces))
-        logging.info(
-            '{complete} / {total} pieces downloaded {per:.3f} %'.format(
-              complete=complete,
-              total=self.total_pieces,
-              per=(complete/self.total_pieces)*100
-              ))
-      else:
-        logging.info('Discarding corrupt piece {index}'.format(
-          index=piece.index
-          ))
-          
-        piece.reset()
-  else:
-    logging.warning('Trying to update piece that is not downloaded!')
+    pieces = [p for p in self.ongoing_pieces if p.index == piece_index] # get the piece 
+    # that we want to chack the hash value of.
+    piece = pieces[0] if pieces else None 
+    if piece:
+      piece.block_received(block_offset, data)
+      if piece.is_complete():
+        if piece.is_hash_matching():
+          self._write(piece)
+          self.ongoing_pieces.remove(piece)
+          self.have_pieces.append(piece)
+          complete = (self.total_pieces - len(self.missing_pieces) - len(self.ongoing_pieces))
+          logging.info(
+              '{complete} / {total} pieces downloaded {per:.3f} %'.format(
+                complete=complete,
+                total=self.total_pieces,
+                per=(complete/self.total_pieces)*100
+                ))
+        else:
+          logging.info('Discarding corrupt piece {index}'.format(
+            index=piece.index
+            ))
+            
+          piece.reset()
+    else:
+      logging.warning('Trying to update piece that is not downloaded!')
 
   
   def expired_requests(self, peer_id) -> Block:
@@ -263,4 +263,14 @@ def block_recieved(self, peer_id, piece_index, block_offset, data):
     '''
     piece_count = defaultdict(int) # a default dict is a dict that doesn't raise key error
     # if u access a non-existing key, it gets added and assigned the default value, in our case int -> 0
-    
+    for piece in self.missing_pieces:
+      if not self.peers[peer_id][piece.index]:
+        continue
+      for p in self.peers:
+        if self.peers[p][piece.index]:
+          piece_count[piece] += 1
+
+    rarest_piece = min(piece_count, key=lambda p: piece_count[p])
+    self.missing_pieces.remove(rarest_piece)
+    self.ongoing_pieces.append(rarest_piece)
+    return rarest_piece
