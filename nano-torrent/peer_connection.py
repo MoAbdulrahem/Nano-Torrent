@@ -3,6 +3,7 @@ import logging
 from asyncio import Queue
 from concurrent.futures import CancelledError
 
+from bencoding import encode
 # Max peer connection for a single torrent
 MAX_PEER_CONNECTION = 40
 
@@ -68,3 +69,183 @@ class PeerConnection:
     self.on_block_cb = on_block_cb
     self.future = asyncio.ensure_future(self.start()) # start the current worker
 
+  async def start(self):
+    while 'stopped' not in self.my_state:
+      ip, port = await self.queue.get() #different from regular Queue in that if the queue
+      # is empty, it will keep waiting until an item is enqueued.
+      logging.info(
+        'Assigned to peer with ip: {ip}'.format(ip = ip)
+      )
+      try:
+        self.reader, self.writer = await asyncio.open_connection(ip, port)
+        logging.info(
+          'Assigned to peer with ip: {ip}'.format(ip = ip)
+        )
+
+        # initiate handshake
+        buffer = await self.handshake()
+        # TODO: implement sending a bitfield message (with the pieces we currently have)
+
+        # the default state after the handshake is that we are not-interested and choked
+        self.my_state.append('choked')
+        await self.send_interested()
+        self.my_state.append('interested')
+
+        # Now we are ready to recieve data
+
+        # Start reading responses as a stream of messages for as
+        # long as the connection is open and data is transmitted
+        async for message in PeerStreamIterator(self.reader, buffer):
+          if 'stopped' in self.my_state:
+            break
+
+          if type(message) is BitField:
+            self.piece_manager.add_peer(self.remote_id, message.bitfield)
+
+          elif type(message) is Interested:
+            self.peer_state.append('interested')
+
+          elif type(message) is NotInterested:
+            if 'interested' in self.peer_state:
+              self.peer_state.remove('interested')
+
+          elif type(message) is Choke:
+            self.my_state.append('choked')
+
+          elif type(message) is Unchoke:
+            if 'choked' in self.my_state:
+              self.my_state.remove('choked')
+
+          elif type(message) is Have:
+            self.piece_manager.update_peer(self.remote_id, message.index)
+
+          elif type(message) is KeepAlive:
+            pass
+
+          elif type(message) is Piece:
+            self.my_state.remove('pending_request')
+            self.on_block_cb(
+              peer_id=self.remote_id,
+              piece_index=message.index,
+              block_offset=message.begin,
+              data=message.block
+            )
+
+          elif type(message) is Request:
+            # TODO implement seeding
+            logging.info('Received Request message: Ignored as seeding is not yet implemented.')
+
+          elif type(message) is Cancel:
+            # TODO implement seeding
+            logging.info('Received Cancel message: Ignored as seeding is not yet implemented.')
+
+
+          # Send block request to remote peer if we're interested
+          if 'choked' not in self.my_state:
+            if 'interested' in self.my_state:
+              if 'pending_request' not in self.my_state:
+                self.my_state.append('pending_request')
+                await self.request_piece()
+      except ProtocolError as e:
+        logging.exception('Protocol error')
+
+      except (ConnectionRefusedError, TimeoutError):
+        logging.warning('Unable to connect to peer')
+
+      except (ConnectionResetError, CancelledError):
+        logging.warning('Connection closed')
+
+      except Exception as e:
+        logging.exception('An error occurred')
+        self.cancel()
+        raise e
+
+      self.cancel()
+
+  def cancel(self):
+    '''
+    Sends cancel message to the remote peer and closes the connection
+    '''
+    logging.info('Closing connection with peer {id}'.format(id=self.remote_id))
+    if not self.future.done():
+      self.future.cancel()
+
+    if self.writer:
+      self.writer.close()
+
+    self.queue.task_done()
+
+  def stop(self):
+    '''
+    Stops the connection with the current peer, and prevents connecting to a new
+    one
+    '''
+    # Set state to stopped and cancel our future to break out of the loop.
+    self.my_state.append('stopped')
+    if not self.future.done():
+      self.future.cancel()
+
+  async def request_piece(self):
+    block = self.piece_manager.next_request(self.remote_id)
+
+    if block:
+      message = encode(Request(block.piece, block.offset, block.length))
+      logging.debug('Requesting block {block} for piece {piece} of {length} bytes from peer {peer}'.format(
+        piece=block.piece,
+        block=block.offset,
+        length=block.length,
+        peer=self.remote_id
+      ))
+
+      self.writer.write(message)
+      await self.writer.drain()  #Flush the write buffer
+      # The intended use is to write. ex: w.write(data) await w.drain()
+
+  async def handshake(self):
+    '''
+    Sends handshake to the remote peer, and await for the remote peer to
+    send its own handshake.
+    '''
+    self.writer.write(Handshake(encode(self.info_hash, self.peer_id)))
+    await self.writer.drain()
+
+    buf = b''
+    tries = 1
+    while len(buf) < Handshake.legnth and tries < 10:
+      tries += 1
+      buf = await self.reader.read(PeerStreamIterator.CHUNK_SIZE) #If n is not provided, or set to -1, 
+      # read until EOF and return all read bytes. If the EOF was received and the internal 
+      # buffer is empty, return an empty bytes object.
+
+    response = Handshake.decode(buf[:Handshake.length])
+    if not response:
+      raise ProtocolError("Peer didn't send its own handshake.")
+    if not response.info_hash == self.info_hash:
+      raise ProtocolError("Handshake with invalid info hash.")
+
+    self.remote_id = response.peer_id
+    logging.info("Handshake with peer was successful!")
+
+    # We need to return the remaining buffer data, since we might have read more bytes than the 
+    # handshake message, so those bytes were part of the next message
+    return buf[Handshake.length:]
+
+  async def send_interested(self):
+    '''
+    Send interested message to peer
+    '''
+    message = Interested()
+    logging.debug(
+      'Sending message: {type}'.format(
+        type = message
+      )
+    )
+    self.writer.write(encode(message))
+    await self.writer.drain()
+
+
+
+
+
+class ProtocolError(BaseException):
+  pass
