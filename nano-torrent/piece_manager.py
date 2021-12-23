@@ -68,4 +68,49 @@ class PieceManager:
       os.close(self.fd)
 
   @property
+  def complete(self):
+    '''
+    Checks whether all the torrent pieces are downloaded or not.
+
+    Returns True if all the pieces are downloaded, False otherwise.
+    '''
+
+    return len(self.have_pieces) == self.total_pieces
+
+  @property
+  def bytes_downloaded(self):
+    '''
+    returns the size in bytes for the pieces that have been downloaded.
+
+    pieces that we have blocks of, but are not yet fully downloaded are not counted.
+    '''
+
+    return len(self.have_pieces) * self.torrent.piece_legnth
+
+  @property
+  def bytes_uploaded(self):
+    '''
+    returns the size of pieces we have uploaded
+    '''
+    return 0 # seeding is not implemented yet
+
+  
+  def add_peer(self, peer_id, bitfield):
+    '''
+    Adds a peer and the bitfield representing the pieces that the peer have.
+
+    :param peer_id: the id of the peer.
+    :param bitfield: is a message that the peer sends us, it consists of a binary sequence with the same length 
+    as the number of pieces, each digit in the binary represents a piece, so a 0 means a missing piece, and 1 means
+    the peer has that piece
+    '''
+    self.peers[peer_id] = bitfield
+
+  def update_peer(self, peer_id, index):
+    '''
+    updates the information about which piees a peer has. (reflects a Have message)
+    '''
+    if peer_id in self.peers:
+      self.peers[peer_id][index] = 1
+
   
