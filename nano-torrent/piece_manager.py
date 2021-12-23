@@ -41,10 +41,10 @@ class PieceManager:
 
     for index, hash_value in enumerate(torrent.pieces):
 
-      if index < (total_pieces -1):
+      if index < (total_pieces -1): 
         blocks = [Block(index, offset*REQUEST_SIZE, REQUEST_SIZE) for offset in range(std_piece_blocks)]
 
-      else:
+      else: # This is the last piece
 
         last_length = torrent.total_size % torrent.piece_length
         num_blocks = math.ciel(last_length/ REQUEST_SIZE)
@@ -58,3 +58,14 @@ class PieceManager:
 
       pieces.append(Piece(index, blocks, hash_value))
     return pieces
+
+  
+  def close(self):
+    '''
+    Closes opened files
+    '''
+    if self.fd:
+      os.close(self.fd)
+
+  @property
+  
