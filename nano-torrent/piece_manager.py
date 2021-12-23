@@ -291,3 +291,11 @@ class PieceManager:
 
         return piece.next_request()
     return None
+
+  def write(self,piece):
+    '''
+    Writes a completed piece to disk
+    '''
+    pos = piece.index * self.torrent.piece_length # get the position of that piece in file
+    os.lseek(self.fd, pos, os.SEEK_SET) # seek that position
+    os.write(self.fd, piece.data) # write the data
