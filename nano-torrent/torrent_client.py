@@ -89,7 +89,8 @@ class TorrentClient:
 
   def on_block_retrieved(self, peer_id, piece_index, block_offset, data):
     '''
-    Called by peer connection when a peer has blocked the client
+    Called by peer connection when a block has been successfully retrieved from
+    the peer.
 
     :param peer_id: the id of the peer the block was retrieved from.
     :param piece_index: the piece index this block is a part of.

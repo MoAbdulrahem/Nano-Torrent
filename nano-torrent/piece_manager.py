@@ -1,6 +1,6 @@
 import os
 import math
-
+import logging
 from collections import namedtuple
 
 from piece import Piece
@@ -12,7 +12,8 @@ PendingRequest = namedtuple('PendingRequest', ['block', 'added'])
 
 class PieceManager:
   '''
-  Responsible for checking all the pieces of the torrent, which pieces we have downloaded, 
+  Responsible for checking all the pieces of the torrent, which pieces we 
+  have downloaded, 
   and which pieces we are going to request from the peers.
 
   Responsible for storing the pieces on disk.
@@ -31,13 +32,15 @@ class PieceManager:
 
   def initiate_pieces(self) -> Piece:
     '''
-    Constructs the list of Blocks based on the number of pieces and the REQUEST_SIZE for this torrent
+    Constructs the list of Blocks based on the number of pieces and the 
+    REQUEST_SIZE for this torrent
     '''
     torrent = self.torrent
     pieces = []
     total_pieces = len(torrent.pieces)
     std_piece_blocks = math.ciel(torrent.piece_length / REQUEST_SIZE) # number of pieces = length/request_size 
-    #and we take the upper cieling for it the last block would be smaller than the other pieces but would still take a request.
+    #and we take the upper cieling for it the last block would be smaller 
+    # than the other pieces but would still take a request.
 
     for index, hash_value in enumerate(torrent.pieces):
 
@@ -82,7 +85,8 @@ class PieceManager:
     '''
     returns the size in bytes for the pieces that have been downloaded.
 
-    pieces that we have blocks of, but are not yet fully downloaded are not counted.
+    pieces that we have blocks of, but are not yet fully downloaded are 
+    not counted.
     '''
 
     return len(self.have_pieces) * self.torrent.piece_legnth
@@ -100,17 +104,109 @@ class PieceManager:
     Adds a peer and the bitfield representing the pieces that the peer have.
 
     :param peer_id: the id of the peer.
-    :param bitfield: is a message that the peer sends us, it consists of a binary sequence with the same length 
-    as the number of pieces, each digit in the binary represents a piece, so a 0 means a missing piece, and 1 means
-    the peer has that piece
+    :param bitfield: is a message that the peer sends us, it consists of 
+    a binary sequence with the same length 
+    as the number of pieces, each digit in the binary represents a piece, 
+    so a 0 means a missing piece, and 1 means the peer has that piece
     '''
     self.peers[peer_id] = bitfield
 
   def update_peer(self, peer_id, index):
     '''
-    updates the information about which piees a peer has. (reflects a Have message)
+    updates the information about which piees a peer has. (reflects a Have
+     message)
     '''
     if peer_id in self.peers:
       self.peers[peer_id][index] = 1
 
+  def remove_peer(self, peer_id):
+    '''
+    removes a peer from the list of peers (if the connection to the peer
+     was dropped)
+    '''
+    if peer_id in self.peers:
+      del self.peers[peer_id]
+
+  def next_request(self, peer_id) -> Block:
+    '''
+    Get the next Block that should be requested from the given peer.
+
+    If there are no more blocks left to retrieve or if this peer does not
+    have any of the missing pieces, return None
+    '''
+    # This implementation uses Rarest-Piece-First algorithm, in which we 
+    # determine the pieces with the lowest number of peers that have them,
+    # and start downloading them.
+    # The download should be randomized, as  all the leechers downloading
+    # the piece with the lowest available peer would be counter-productive.
+    #
+    # The algorithm tries to download the pieces in sequence and will try
+    # to finish started pieces before starting with new pieces.
+    #
+    # 1. Check any pending blocks to see if any request should be reissued
+    #    due to timeout
+    # 2. Check the ongoing pieces to get the next block to request
+    # 3. Check if this peer have any of the missing pieces not yet started
+
+    if peer_id not in self.peers:
+      return None
+
+    block = self.expired_requests(peer_id)
+    if not block: #no expired requests, so request for the next block
+      block = self.next_ongoing(peer_id)
+      if not block: #no next_ongoing requests
+        block  = self.get_rarest_piece(peer_id).next_request()
+    
+    return block
+
   
+
+def block_recieved(self, peer_id, piece_index, block_offset, data):
+  '''
+  This method must be called when a block has successfully been retrieved
+  by a peer.
+
+  Once a full piece has been retrieved, a SHA1 hash control is made. If
+  the check fails all the pieces blocks are put back in missing state to
+  be fetched again. If the hash succeeds the partial piece is written to
+  disk and the piece is indicated as Have.
+  '''
+
+  logging.debug('Received block {block_offset} for piece {piece_index} from peer {peer_id}: '.format(
+    block_offset=block_offset,
+    piece_index=piece_index,
+    peer_id=peer_id
+    ))
+
+  # Remove from pending requests
+  for index, request in enumerate(self.pending_blocks):
+    if request.block.piece == piece_index and request.block.offset == block_offset:
+      del self.pending_blocks[index]
+      break
+
+  pieces = [p for p in self.ongoing_pieces if p.index == piece_index] # get the piece 
+  # that we want to chack the hash value of.
+  piece = pieces[0] if pieces else None 
+  if piece:
+    piece.block_received(block_offset, data)
+    if piece.is_complete():
+      if piece.is_hash_matching():
+        self._write(piece)
+        self.ongoing_pieces.remove(piece)
+        self.have_pieces.append(piece)
+        complete = (self.total_pieces - len(self.missing_pieces) - len(self.ongoing_pieces))
+        logging.info(
+            '{complete} / {total} pieces downloaded {per:.3f} %'.format(
+              complete=complete,
+              total=self.total_pieces,
+              per=(complete/self.total_pieces)*100
+              ))
+      else:
+        logging.info('Discarding corrupt piece {index}'.format(
+          index=piece.index
+          ))
+          
+        piece.reset()
+  else:
+    logging.warning('Trying to update piece that is not downloaded!')
+    
