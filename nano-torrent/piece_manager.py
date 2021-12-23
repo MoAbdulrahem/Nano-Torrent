@@ -198,11 +198,11 @@ class PieceManager:
           self.have_pieces.append(piece)
           complete = (self.total_pieces - len(self.missing_pieces) - len(self.ongoing_pieces))
           logging.info(
-              '{complete} / {total} pieces downloaded {per:.3f} %'.format(
-                complete=complete,
-                total=self.total_pieces,
-                per=(complete/self.total_pieces)*100
-                ))
+            '{complete} / {total} pieces downloaded {per:.3f} %'.format(
+              complete=complete,
+              total=self.total_pieces,
+              per=(complete/self.total_pieces)*100
+          ))
         else:
           logging.info('Discarding corrupt piece {index}'.format(
             index=piece.index
@@ -274,3 +274,20 @@ class PieceManager:
     self.missing_pieces.remove(rarest_piece)
     self.ongoing_pieces.append(rarest_piece)
     return rarest_piece
+
+  def next_missing(self, peer_id):
+    '''
+    Goest through the missing pieces and returns the next block to be
+    requested or None if there are no blocks left.
+
+    updates the status of the piece from missing to ongoing.
+    '''
+    for index, piece in enumerate(self.missing_pieces):
+      if self.peers[peer_id][piece.index]: #if we have a peer that has the piece with specifix index
+
+        # change the piece status from missing to ongoing
+        piece = self.missing_pieces.pop(index)
+        self.ongoing_pieces.append(piece)
+
+        return piece.next_request()
+    return None
