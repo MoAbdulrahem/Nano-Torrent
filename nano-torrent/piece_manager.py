@@ -1,7 +1,9 @@
 import os
 import math
 import logging
-from collections import namedtuple
+import time
+
+from collections import namedtuple, defaultdict
 
 from piece import Piece
 from block import Block
@@ -209,4 +211,56 @@ def block_recieved(self, peer_id, piece_index, block_offset, data):
         piece.reset()
   else:
     logging.warning('Trying to update piece that is not downloaded!')
+
+  
+  def expired_requests(self, peer_id) -> Block:
+    '''
+    Goes through the requested blocks and checks if any of them has
+    been requested for longer than the MAX_PENDING_TIME. If found,
+    return them to be reissued.
+
+    if none is found return None.
+    '''
+
+    current = int(round(time.time()*1000)) #current time in seconds
+    for request in self.pending_blocks: #pending_blocks contain tuples of PendingRequests,
+      # which consist of the block and the time it was added
+      if self.peers[peer_id][request.block.piece]:
+        if request.added + self.max_pending_time < current:
+          logging.info('Re-requesting block {block} for piece {piece}'.format(
+            block=request.block.offset,
+            piece=request.block.piece
+          ))
+          
+          request.added = current #reset expiration rimer
+          return request.block
+
+    return None # No blocks need to be re-requested
+
+  def self_ongoing(self, peer_id) -> Block:
+    '''
+    Goes through ongoing pieces and returns the next block to be downloaded
+    or None if there are no blocks left.
+    '''
+    for piece in self.ongoing_pieces:
+      if self.peers[peer_id][piece.index]: # are there any blocks left to
+        # download in this piece?
+        block = piece.next_request()
+        if block:
+          self.pending_blocks.append(
+            PendingRequest(block, int(round(time.time() * 1000)))
+          )
+          return Block
+    return None
+
+  def get_rarest_piece(self, peer_id):
+    '''
+    The algorithm we follow to determine which pieces would be downloaded
+    first.
+
+    Goes through the list of missing_pieces, and returns the rarest one
+    (the one with the least number of seeders)
+    '''
+    piece_count = defaultdict(int) # a default dict is a dict that doesn't raise key error
+    # if u access a non-existing key, it gets added and assigned the default value, in our case int -> 0
     
