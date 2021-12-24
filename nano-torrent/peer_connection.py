@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import struct
+import bitstring
 
 from asyncio import Queue
 from concurrent.futures import CancelledError
@@ -514,4 +515,60 @@ class Handshake(PeerMessage):
     return "Handshake"
 
 
-    
+class KeepAlive(PeerMessage):
+  '''
+  KeepAlive message is sent to peers periodically to prevent the peer
+  from dropping the connection if no messages were recieved in a certain
+  period of time.
+
+  Message structure: <len=0000>
+  It has no id and no payload.
+
+  '''
+  # TODO: ssend keep alive message to all peers once every 2 min
+  def __str__(self):
+    return "KeepAlive"
+
+class BitField(PeerMessage):
+  '''
+  The BitField is a message with variable length where the payload is a
+  bit array representing all the bits a peer have (1) or does not have (0).
+
+  Message Structure: <len=0001+X><id=5><bitfield>
+  '''
+
+  def __init__(self, data: bytes):
+    self.bitfield = bitstring.BitArray(bytes=data)
+
+  def encode(self) -> bytes:
+    '''
+    The overridden version of the superclass.
+
+    encodes the bitarray into raw bytes representing the message, ready to be 
+    transmitted.
+    '''
+    bits_length = len(self.bitfield)
+    return struct.pack(
+      '>Ib' + str(bits_length) + 's',
+      1 + bits_length,       # length
+      PeerMessage.BitField,  # message id
+      self.bitfield          # payload
+    )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    '''
+    Decodes the recieved message into a BitField message, if the passed message is
+    not a valid BitField message, returns None
+    '''
+    message_length = struct.unpack('>I', data[:4])[0]
+
+    logging.debug("Decoding Bitfield of length: {length} ".format(
+      length = message_length
+    ))
+
+    parts = struct.unpack
+    return cls(info_hash=parts[2], peer_id=parts[3])
+
+  def __str__(self):
+    return "Handshake"
