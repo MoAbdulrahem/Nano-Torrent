@@ -114,11 +114,6 @@ class Tracker:
       'compact': 1,
     }
 
-def decode_port(port):
-  '''
-  converts a 32-bit packed binary number to int
-  '''
-  return unpack(">H", port)[0]
 
 #Testing 
 if __name__ == '__main__':

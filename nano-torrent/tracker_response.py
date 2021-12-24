@@ -5,7 +5,14 @@ from urllib.parse import urlencode
 from bencoding import decode
 from torrent import Torrent
 from struct import unpack
-from tracker import decode_port
+# from tracker import decode_port
+
+def decode_port(port):
+  '''
+  converts a 32-bit packed binary number to int
+  '''
+  return unpack(">H", port)[0]
+
 
 class TrackerResponse:
   '''
