@@ -36,13 +36,16 @@ class TrackerResponse:
     # TODO: Handle dictionary-model peers
     peers = self.response['peers']
     if type(peers) == list:
-      logging.debug('Tracker Responded with Dictionary-model peers')
+      logging.info('Tracker Responded with Dictionary-model peers')
       raise NotImplementedError()
     else:
-      logging.debug('Tracker Responded with Binary-model peers')
+      logging.info('Tracker Responded with Binary-model peers')
       peers = [peers[i:i+6] for i in range(0,len(peers),6)]
-
-      return [(socket.inet_ntoa(peer[:4]), decode_port(peer[:4])) for peer in peers] #socket.inet_ntoa: converts a 32-bit packed ip address to the standard dotted format. # This line converts the list of peers to a tuple.
+      
+      # print("\n\nPeers: ", peers)
+      # socket.inet_ntoa: converts a 32-bit packed ip address to the standard dotted format.
+      # This line converts the list of peers to a tuple.
+      return [(socket.inet_ntoa(peer[:4]), decode_port(peer[4:])) for peer in peers] 
 
 
   @property

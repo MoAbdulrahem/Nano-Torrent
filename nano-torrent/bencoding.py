@@ -21,6 +21,12 @@ def decode(filepath: str=""):
     contents = bdecode(f)
     return contents
 
+def decode_dict(text: str) -> dict:
+  '''
+  takes a bencoded dict as a string and returns a python dict
+  '''
+  if text:
+    return bdecode(text)
 
 def encode(text: str=""):
   '''

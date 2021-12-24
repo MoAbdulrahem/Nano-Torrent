@@ -3,7 +3,7 @@ import random
 import asyncio
 import logging
 from urllib.parse import urlencode
-from bencoding import decode
+from bencoding import decode, decode_dict
 from torrent import Torrent
 from struct import unpack
 from tracker_response import TrackerResponse
@@ -62,17 +62,17 @@ class Tracker:
     url = self.torrent.announce + '?' + urlencode(parameters)
     # print("Parameters: ",parameters)
     # print("URL: ",url)
-    logging.info('Connecting to Tracker at: '+ url)
+    logging.info(' Connecting to Tracker at: '+ url)
 
     async with self.http_client.get(url) as response:
       if not response.status == 200:
         raise ConnectionError("Unable to connect to Tracker, status code {}".format(response.status))
       
       data = await response.read()
-      # self.detect_errors(data)
+      self.detect_errors(data)
 
-
-      return TrackerResponse(decode(data))
+      print("\n\nDATA: ", decode_dict(data) , "\n\n\n")
+      return TrackerResponse(decode_dict(data))
 
   def close(self):
     '''

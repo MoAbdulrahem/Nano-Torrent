@@ -77,7 +77,7 @@ class PeerConnection:
       ip, port = await self.queue.get() #different from regular Queue in that if the queue
       # is empty, it will keep waiting until an item is enqueued.
       logging.info(
-        'Assigned to peer with ip: {ip}'.format(ip = ip)
+        'Assigned to peer with ip: {ip} and port: {port}'.format(ip = ip, port=port)
       )
       try:
         self.reader, self.writer = await asyncio.open_connection(ip, port)
@@ -221,6 +221,7 @@ class PeerConnection:
       # buffer is empty, return an empty bytes object.
 
     response = Handshake.decode(buf[:Handshake.length])
+    print(response)
     if not response:
       raise ProtocolError("Peer didn't send its own handshake.")
     if not response.info_hash == self.info_hash:
