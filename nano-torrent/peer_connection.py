@@ -573,6 +573,33 @@ class BitField(PeerMessage):
   def __str__(self):
     return "BitField"
 
+class Choke(PeerMessage):
+  '''
+  The choke message is used to tell the peer not to ask for any more
+  requests, until it recieves an Unchoke message.
+
+  We will not be sending it, as seeding is not yet implemented.
+
+  It consists of the length and message ID, with no payload.
+
+  Message format:  <len=0001><id=0>
+  '''
+
+  def __str__(self):
+    return "Choked"
+
+class Unchoke(PeerMessage):
+  '''
+  Tell the peer that it can start sending requests for pieces.
+
+  It consists of the length and message ID, with no payload.
+
+  Message format:  <len=0001><id=1>
+  '''
+
+  def __str__(self):
+    return "Unchoked"
+
 class Interested(PeerMessage):
   '''
   The interested message is used to notify the peer that we are
