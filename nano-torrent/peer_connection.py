@@ -508,7 +508,9 @@ class Handshake(PeerMessage):
     if len(data) < 68: # the supported version of BitTorrent
       return None
 
+    # tuple with (pstr, reserved, info_hash, peer_id)
     parts = struct.unpack('>B19s8x20s20s', data)
+    
     return cls(info_hash=parts[2], peer_id=parts[3])
 
   def __str__(self):
@@ -525,7 +527,7 @@ class KeepAlive(PeerMessage):
   It has no id and no payload.
 
   '''
-  # TODO: ssend keep alive message to all peers once every 2 min
+  # TODO: send keep alive messages to all peers once every 2 min
   def __str__(self):
     return "KeepAlive"
 
@@ -632,3 +634,163 @@ class NotInterested(PeerMessage):
 
   def __str__(self):
     return "NotInterested"
+
+class Have(PeerMessage):
+  '''
+  Represents a piece successfully downloaded by the remote peer. The piece
+  is a zero based index of the torrents pieces.
+
+  have message : <len=0005><id=4><piece index>
+  '''
+
+  def __init__(self, index: int):
+    self.index = index
+
+  def encode(self):
+    return struct.pack('>IbI',
+      5,                  # Message length
+      PeerMessage.Have,   # ID
+      self.index          # Payload
+    )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    logging.debug('Decoding Have of length: {length}'.format(
+      length=len(data)
+    ))
+    index = struct.unpack('>IbI', data)[2]
+    return cls(index)
+
+  def __str__(self):
+    return 'Have'
+
+
+class Request(PeerMessage):
+  '''
+  The message used to request a block of a piece (i.e. a partial piece).
+
+  The request size for each block is 2^14 bytes, except the final block
+  that might be smaller (since not all pieces might be evenly divided by the
+  request size).
+
+  Message format:
+      <len=0013><id=6><index><begin><length>
+  '''
+
+  def __init__(self, index: int, begin: int, length: int = REQUEST_SIZE):
+    '''
+    Constructs the Request message.
+    :param index:  The zero based piece index
+    :param begin:  The zero based offset within a piece
+    :param length: The requested length of data (default 2^14)
+    '''
+    self.index = index
+    self.begin = begin
+    self.length = length
+
+  def encode(self):
+    return struct.pack('>IbIII',
+      13,                    # length
+      PeerMessage.Request,   # message id
+      self.index,
+      self.begin,
+      self.length
+    )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    logging.debug('Decoding Request of length: {length}'.format(
+      length=len(data)))
+
+    # Tuple with (message length, id, index, begin, length)
+    parts = struct.unpack('>IbIII', data)
+    return cls(parts[2], parts[3], parts[4])
+
+  def __str__(self):
+    return 'Request'
+
+
+class Piece(PeerMessage):
+  '''
+  A Piece is too large to fit into a single request, so this class doen't
+  represent a piece, it represents a block of the piece which has the 
+  same size as the REQUEST_SIZE.
+
+  A block is a part of a piece mentioned in the meta-info.
+
+  Message structure: <length prefix><message ID><index><begin><block>
+  '''
+  # The Piece message length without the block data
+  length = 9
+
+  def __init__(self, index: int, begin: int, block: bytes):
+    '''
+    Constructs the Piece message.
+    :param index: The zero based piece index
+    :param begin: The zero based offset within a piece
+    :param block: The block data
+    '''
+    self.index = index
+    self.begin = begin
+    self.block = block
+
+  def encode(self):
+    message_length = Piece.length + len(self.block)
+    return struct.pack('>IbII' + str(len(self.block)) + 's',
+      message_length,
+      PeerMessage.Piece,
+      self.index,
+      self.begin,
+      self.block
+    )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    logging.debug('Decoding Piece of length: {length}'.format(
+      length=len(data)
+    ))
+
+    length = struct.unpack('>I', data[:4])[0]
+    parts = struct.unpack('>IbII' + str(length - Piece.length) + 's',
+      data[:length+4]
+    )
+    return cls(parts[2], parts[3], parts[4])
+
+  def __str__(self):
+    return 'Piece'
+
+
+class Cancel(PeerMessage):
+  '''
+  The cancel message is used to cancel a previously requested block 
+
+  usually send during End-game when most pieces have been downloaded
+
+  Message Structure:  <len=0013><id=8><index><begin><length>
+  '''
+  def __init__(self, index, begin, length: int = REQUEST_SIZE):
+    self.index = index
+    self.begin = begin
+    self.length = length
+
+  def encode(self):
+      return struct.pack('>IbIII',
+        13,
+        PeerMessage.Cancel,
+        self.index,
+        self.begin,
+        self.length
+      )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    logging.debug('Decoding Cancel of length: {length}'.format(
+      length=len(data)
+    ))
+    
+    # Tuple with (message length, id, index, begin, length)
+    parts = struct.unpack('>IbIII', data)
+    return cls(parts[2], parts[3], parts[4])
+
+  def __str__(self):
+    return 'Cancel'
