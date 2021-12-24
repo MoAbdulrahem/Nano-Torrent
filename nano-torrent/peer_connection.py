@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import struct
+
 from asyncio import Queue
 from concurrent.futures import CancelledError
 
@@ -213,7 +215,7 @@ class PeerConnection:
     tries = 1
     while len(buf) < Handshake.legnth and tries < 10:
       tries += 1
-      buf = await self.reader.read(PeerStreamIterator.CHUNK_SIZE) #If n is not provided, or set to -1, 
+      buf = await self.reader.read(PeerStreamIterator.CHUNK_SIZE) #read(int: n): If n is not provided, or set to -1, 
       # read until EOF and return all read bytes. If the EOF was received and the internal 
       # buffer is empty, return an empty bytes object.
 
@@ -244,8 +246,115 @@ class PeerConnection:
     await self.writer.drain()
 
 
+class PeerStreamIterator:
+  '''
+  The PeerStreamIterator is an async Iterator that continously reads from the 
+  given stream reader, and tries to parse off valid BitTorrent messages from
+  the stream of bytes.
 
+  If the connection is dropped or something fails, it stops and raises 
+  'StopAsyncIteration' error.
+  '''
+  CHUNK_SIZE = 10*1024
 
+  def __init__(self, reader, initial: bytes=None):
+    self.reader = reader
+    self.buffer = initial if initial else b''
+
+  async def __aiter__(self):
+    '''
+    Returns an asynchronous iterator
+    '''
+    return self
+
+  async def __anext__(self):
+    '''
+    __anext__ returns an awaitable object, which uses StopIteration exception to
+    yield the next value, and StopAsyncIteration to signal the end of iteration.
+    '''
+    # read data from the socket, when we have enough data to parse, parse it and
+    # return the message. Until then, keep reading frrom stream.
+    while True:
+      try:
+        data = await self.reader.read(PeerStreamIterator.CHUNK_SIZE)
+        if data:
+          self.buffer += data
+          message = self.parse()
+          if message:
+            return message
+        else:
+          logging.debug('No data read from read stream.')
+          if self.buffer:
+            message = self.parse()
+            if message:
+              return message
+
+          raise StopAsyncIteration()
+
+      except ConnectionResetError:
+        logging.debug("Connection was dropped by the peer")
+        raise StopAsyncIteration()
+
+      except CancelledError: # the future was cancelled
+        raise StopAsyncIteration()
+
+      except StopAsyncIteration as e:
+        # catch to stop logging
+        raise e
+      
+      except Exception:
+        logging.exception("Unknown error while iterating over the stream")
+        raise StopAsyncIteration
+
+    raise StopAsyncIteration()
+      
+  def parse(self):
+    '''
+    Tries to parse protocol messages if there are enough bytes to read in the
+    buffer.
+
+    Each message is structured as:    <length prefix><message ID><payload>
+  
+    The `length prefix` is a four byte big-endian value
+    The `message ID` is a decimal byte
+    The `payload` is the value of `length prefix` -message dependant-
+    example: have-message: <len=0005><id=4><piece index>
+  
+    The message length is not part of the actual length. So another
+    4 bytes needs to be included when slicing the buffer.
+
+    returns the parsed message or None if no message was parsed.
+    '''
+    header_length = 4 # the length prefix is not included in the message
+
+    if len(self.buffer) > 4 : # 4-bytes is the length needed to indicate a message
+      message_length = struct.unpack('>I', self.buffer[0:4])[0]
+      # '>I': '>' inicates Big-endian and 'I' indicates unsigned int
+
+      if message_length == 0: #keep-alive consist of only the header which is 4 zeroes
+        return KeepAlive()
+      
+      if len(self.buffer) >= message_length:
+        message_id = struct.unpack('>b', self.buffer[4:5])[0]
+        # '>b': big-endian signed-char
+
+        def consume():
+          '''
+          Consumes the current message from the read buffer.
+          '''
+          # Slice the length and message id from the buffer
+          # this leaves us with the payload of the first message and the rest of
+          # messages after it.
+          self.buffer = self.buffer[header_length + message_length:]
+
+        def data():
+          '''
+          Extracts the current message from the read buffer. 
+          (the payload of the first message)
+          '''
+          return self.buffer[:header_length + message_length]
+
+    
 
 class ProtocolError(BaseException):
   pass
