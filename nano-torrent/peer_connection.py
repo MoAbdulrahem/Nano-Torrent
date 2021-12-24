@@ -354,7 +354,88 @@ class PeerStreamIterator:
           '''
           return self.buffer[:header_length + message_length]
 
-    
+        if message_id is PeerMessage.BitField:
+          data = data()
+          consume()
+          return BitField.decode(data)
+        elif message_id is PeerMessage.Interested:
+          consume()
+          return Interested()
+        elif message_id is PeerMessage.NotInterested:
+          consume()
+          return NotInterested()
+        elif message_id is PeerMessage.Choke:
+          consume()
+          return Choke()
+        elif message_id is PeerMessage.Unchoke:
+          consume()
+          return Unchoke()
+        elif message_id is PeerMessage.Have:
+          data = data()
+          consume()
+          return Have.decode(data)
+        elif message_id is PeerMessage.Piece:
+          data = data()
+          consume()
+          return Piece.decode(data)
+        elif message_id is PeerMessage.Request:
+          data = data()
+          consume()
+          return Request.decode(data)
+        elif message_id is PeerMessage.Cancel:
+          data = data()
+          consume()
+          return Cancel.decode(data)
+        else:
+          logging.info('Unsupported message!')
+      
+      else:
+        logging.info("Not enough bytes in buffer to pasrse a message.")
+    return None
 
+    
 class ProtocolError(BaseException):
   pass
+
+class PeerMessage:
+  '''
+  Represents a message between two peers.
+
+  Handshake message structure: <pstrlen><pstr><reserved><info_hash><peer_id>
+
+  The rest of the messages structure:    <length prefix><message ID><payload>
+  The `length prefix` is a four byte big-endian value
+  The `message ID` is a decimal byte
+  The `payload` is the value of `length prefix` -message dependant-
+  example: have-message: <len=0005><id=4><piece index>
+
+  The message length is not part of the actual length. So another
+  4 bytes needs to be included when slicing the buffer.
+  '''
+  Handshake = None  # Handshake doesn't have the same structure as other messages
+  KeepAlive = None  # Keep-alive consist of 4 zeros (length) with no ID nor payload
+  Choke = 0
+  Unchoke = 1
+  Interested = 2
+  NotInterested = 3
+  Have = 4
+  BitField = 5
+  Request = 6
+  Piece = 7
+  Cancel = 8
+  Port = 9
+
+  def encode(self) -> bytes:
+    '''
+    Encode this object to raw bytes representing the message that is to
+    be transmitted
+    '''
+    pass
+
+  @classmethod
+  def decode(self, data: bytes):
+    '''
+    Decodes the recieved BitTorrent message to the corrosponding instance.
+    '''
+    pass
+    
