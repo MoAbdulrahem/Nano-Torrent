@@ -14,7 +14,8 @@ class Tracker:
   Established Connection with a Tracker for a given Torrent.
   The tracker is an HTTP(S) service that holds information about the torrent and peers.
   The tracker itself does not have the file you want to download,
-  but it does have a list of all peers that are connected for this torrent who have the file or are downloading the file.
+  but it does have a list of all peers that are connected for this torrent who have the
+  file or are downloading the file.
   It responds to GET requests with a list of peers.
   '''
 
@@ -25,13 +26,16 @@ class Tracker:
 
   async def connect(self, first: bool=None, uploaded: int=0, downloaded: int=0):
     '''
-    Makes the 'announce' call to the tracker URL optained from the info['announce'] that we parsed from the .torrent file.
-    If the call with successful, the tracker returns a response, of interest to us is the peer list which is a list of peers
+    Makes the 'announce' call to the tracker URL optained from the 
+    info['announce'] that we parsed from the .torrent file.
+    If the call with successful, the tracker returns a response, 
+    of interest to us is the peer list which is a list of peers
     that currently have the file and are ready to seed it.
 
-    :param first : whether or not this is our first contact with this particular tracker.
-    :param uploaded : The total number of bytes uploaded.
-    :param downloaded : The total number of bytes downloaded.
+    :param first :     whether or not this is our first contact with 
+                       this particular tracker.
+    :param uploaded:   The total number of bytes uploaded.
+    :param downloaded: The total number of bytes downloaded.
     
     The parameters required in the tracker get request:
 

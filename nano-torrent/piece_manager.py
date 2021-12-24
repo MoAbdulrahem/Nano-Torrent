@@ -40,8 +40,8 @@ class PieceManager:
     torrent = self.torrent
     pieces = []
     total_pieces = len(torrent.pieces)
-    std_piece_blocks = math.ciel(torrent.piece_length / REQUEST_SIZE) # number of pieces = length/request_size 
-    #and we take the upper cieling for it the last block would be smaller 
+    std_piece_blocks = math.ceil(torrent.piece_length / REQUEST_SIZE) # number of pieces = length/request_size 
+    #and we take the upper ceiling for it the last block would be smaller 
     # than the other pieces but would still take a request.
 
     for index, hash_value in enumerate(torrent.pieces):
@@ -52,7 +52,7 @@ class PieceManager:
       else: # This is the last piece
 
         last_length = torrent.total_size % torrent.piece_length
-        num_blocks = math.ciel(last_length/ REQUEST_SIZE)
+        num_blocks = math.ceil(last_length/ REQUEST_SIZE)
         blocks = [Block(index, offset*REQUEST_SIZE, REQUEST_SIZE) for offset in range(num_blocks)]
 
         if last_length % REQUEST_SIZE > 0:
@@ -91,7 +91,7 @@ class PieceManager:
     not counted.
     '''
 
-    return len(self.have_pieces) * self.torrent.piece_legnth
+    return len(self.have_pieces) * self.torrent.piece_length
 
   @property
   def bytes_uploaded(self):

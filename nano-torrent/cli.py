@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import signal
 import argparse
 from concurrent.futures import CancelledError
 from torrent import Torrent
@@ -17,7 +16,7 @@ def main():
       logging.basicConfig(level = logging.INFO)
 
     # Asyncronous IO
-    loop = asyncio.get_even_loop()
+    loop = asyncio.get_event_loop()
     client = TorrentClient(Torrent(args.torrent))
     task = loop.create_task(client.start())
 
@@ -30,3 +29,6 @@ def main():
     logging.info("Exitting")
     client.stop()
     task.cancel()
+
+
+main()

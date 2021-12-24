@@ -54,7 +54,7 @@ class Torrent:
     '''
     returns the piece length of the .torrent file.
     '''
-    return self.meta_info['info']['piece legnth']
+    return self.meta_info['info']['piece length']
   
 
   

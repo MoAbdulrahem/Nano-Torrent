@@ -37,7 +37,7 @@ class TorrentClient:
         self.piece_manager,
         self.on_block_retrieved
         )
-        for _ in(MAX_PEER_CONNECTION)]
+        for _ in range(MAX_PEER_CONNECTION)]
 
     # Last time we made an announce call
     previous = None
