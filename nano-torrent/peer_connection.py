@@ -438,4 +438,80 @@ class PeerMessage:
     Decodes the recieved BitTorrent message to the corrosponding instance.
     '''
     pass
+
+##
+# Implementing each message type
+##
+
+class Handshake(PeerMessage):
+  '''
+  The handshake message is the first message sent and then received from a
+  remote peer.
+
+  The messages is always 68 bytes long in BitTorrent version 1.0 
+
+  Message format:  <pstrlen><pstr><reserved><info_hash><peer_id>
+
+  In version 1.0 of the BitTorrent protocol:
+    pstrlen = 19
+    pstr = "BitTorrent protocol".
+
+  Thus length is:
+    49 + len(pstr) = 68 bytes long.
+  '''
+  length = 68 # 49+19
+
+  def __init__(self, info_hash: bytes, peer_id: bytes):
+    '''
+    Constructs the Handshake message
+
+    :param info_hash: The SHA1 hash of the info-dict
+    :param peer_id:   Our unique peer id
+    '''
+    # Making sure that the parameters are in bytes
+    if isinstance(info_hash, str):
+      info_hash = info_hash.encode('utf-8')
+
+    if isinstance(peer_id, str):
+      peer_id = peer_id.encode('utf-8')
+
+    self.info_hash = info_hash
+    self.peer_id = peer_id
+
+  def encode(self) -> bytes:
+    '''
+    The overridden version of the superclass.
+
+    encodes the handshake into raw bytes representing the message, ready to be 
+    transmitted.
+    '''
+    return struct.pack(
+      '>B19s8x20s20s',
+      19,                         # Single byte (B)
+      b'BitTorrent protocol',     # String 19s
+                                  # Reserved 8x (pad byte, no value)
+      self.info_hash,             # String 20s
+      self.peer_id                # String 20s
+    )
+
+  @classmethod
+  def decode(cls, data: bytes):
+    '''
+    Decode the recieved message into a handshake message, if the passed message is
+    not a valid handshake message, returns None
+    '''
+    logging.debug("Decoding handshake of length: {length} ".format(
+      length = len(data)
+    ))
+
+    if len(data) < 68: # the supported version of BitTorrent
+      return None
+
+    parts = struct.unpack('>B19s8x20s20s', data)
+    return cls(info_hash=parts[2], peer_id=parts[3])
+
+  def __str__(self):
+    return "Handshake"
+
+
     
