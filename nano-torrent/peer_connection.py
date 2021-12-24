@@ -567,8 +567,41 @@ class BitField(PeerMessage):
       length = message_length
     ))
 
-    parts = struct.unpack
-    return cls(info_hash=parts[2], peer_id=parts[3])
+    parts = struct.unpack('>Ib' + str(message_length - 1) + 's', data)
+    return cls(parts[2])
 
   def __str__(self):
-    return "Handshake"
+    return "BitField"
+
+class Interested(PeerMessage):
+  '''
+  The interested message is used to notify the peer that we are
+  interested in downloading the pieces they have.
+
+  It consists of the length and message ID, with no payload.
+
+  Message format:  <len=0001><id=2>
+  '''
+
+  def encode(self) -> bytes:
+    return struct.pack(
+      '>Ib',
+      1,                      # legnth
+      PeerMessage.Interested  # message ID
+    )
+
+  def __str__(self):
+    return "Interested"
+
+class NotInterested(PeerMessage):
+  '''
+  The not-interested message is used to notify the peer that we are
+  not interested in downloading the pieces they have.
+
+  It consists of the length and message ID, with no payload.
+
+  Message format:  <len=0001><id=3>
+  '''
+
+  def __str__(self):
+    return "NotInterested"
