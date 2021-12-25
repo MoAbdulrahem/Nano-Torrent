@@ -39,6 +39,10 @@ class TorrentClient:
         )
         for _ in range(MAX_PEER_CONNECTION)]
 
+    # print("\nPeers:\n")
+    # for peer in self.peers:
+    #   print("id: ", peer.peer_id)
+    
     # Last time we made an announce call
     previous = None
     # Interval between announce calls

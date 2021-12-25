@@ -41,10 +41,11 @@ class TrackerResponse:
     else:
       logging.info('Tracker Responded with Binary-model peers')
       peers = [peers[i:i+6] for i in range(0,len(peers),6)]
-      
+
       # print("\n\nPeers: ", peers)
       # socket.inet_ntoa: converts a 32-bit packed ip address to the standard dotted format.
       # This line converts the list of peers to a tuple.
+      print("Peers parsed from tracker response:",[(socket.inet_ntoa(peer[:4]), decode_port(peer[4:])) for peer in peers])
       return [(socket.inet_ntoa(peer[:4]), decode_port(peer[4:])) for peer in peers] 
 
 
