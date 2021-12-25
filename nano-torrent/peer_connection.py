@@ -76,10 +76,12 @@ class PeerConnection:
     while 'stopped' not in self.my_state:
       ip, port = await self.queue.get() #different from regular Queue in that if the queue
       # is empty, it will keep waiting until an item is enqueued.
+      
       logging.info(
         'Assigned to peer with ip: {ip} and port: {port}'.format(ip = ip, port=port)
       )
       try:
+        # print("Handshake: ", self.handshake())
         self.reader, self.writer = await asyncio.open_connection(ip, port)
         logging.info(
           'Assigned to peer with ip: {ip}'.format(ip = ip)
@@ -210,6 +212,7 @@ class PeerConnection:
     send its own handshake.
     '''
     self.writer.write(Handshake(encode(self.info_hash, self.peer_id)))
+    
     await self.writer.drain()
 
     buf = b''
