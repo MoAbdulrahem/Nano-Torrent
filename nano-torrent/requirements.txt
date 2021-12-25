@@ -1,4 +1,4 @@
-aiohttp==0.22.5
+aiohttp==3.8.1
 aiosignal==1.2.0
 bcoding==1.5
 bitarray==0.8.1
