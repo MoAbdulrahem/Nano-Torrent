@@ -44,6 +44,3 @@ Right now, Nano-Torrent can only download single-file silngle-piece torrents.
 ### Implementing BitTorrent
 [Unofficial BitTorrent Specs](https://wiki.theory.org/BitTorrentSpecification)
 
-[Writing a BitTorrent Client. ](https://blog.qqrs.us/blog/2016/05/22/writing-a-bittorrent-client/)  [(part 2)](http://www.kristenwidman.com/blog/71/how-to-write-a-bittorrent-client-part-2/)
-
-[A BitTorrent client in Python 3.5](https://markuseliasson.se/article/bittorrent-in-python/)
