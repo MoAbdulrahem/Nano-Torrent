@@ -8,6 +8,7 @@ from collections import namedtuple, defaultdict
 from piece_manager import PieceManager
 from peer_connection import PeerConnection, MAX_PEER_CONNECTION
 from tracker import Tracker
+from torrent import Torrent
 
 
 class TorrentClient:
@@ -16,7 +17,7 @@ class TorrentClient:
   It also makes periodic announce calls to the tracker to update its list of peers with new ones.
   The list of peers is added to a queue from which we consume them one by one.
   '''
-  def __init__(self, torrent):
+  def __init__(self, torrent: Torrent):
     self.tracker = Tracker(torrent)
     self.available_peers = Queue() # The list of peers that can seed the file (all the peers we got from the tracker)
     self.peers = [] #The list of peers that we are trying to establish connection with (the peers we consumed from the Queue)
@@ -91,7 +92,7 @@ class TorrentClient:
     self.piece_manager.close()
     self.tracker.close()
 
-  def on_block_retrieved(self, peer_id, piece_index, block_offset, data):
+  def on_block_retrieved(self, peer_id: str, piece_index: int, block_offset: int, data: bytes):
     '''
     Called by peer connection when a block has been successfully retrieved from
     the peer.
